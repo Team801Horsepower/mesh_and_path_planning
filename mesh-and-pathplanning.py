@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import networkx as netx
 from scipy.interpolate import CubicSpline
 import random
+import time
 
 class Node:
     def __init__(self, x, y):
@@ -76,20 +77,28 @@ def build_graph_from_grid(points, image, mesh_spacing=50, key_points=None):
 
 def find_path(graph, key_points):
     path_points = []
+    total_path_time = 0
+    path_points = []
     for i in range(len(key_points) - 1):
         try:
             source = (key_points[i].x, key_points[i].y)
             target = (key_points[i + 1].x, key_points[i + 1].y)
+            start_time_path_segment = time.time()
             if source not in graph or target not in graph:
                 print(f"Error: One or both of the key points {source}, {target} are not in the graph.")
                 continue
             path_segment = netx.shortest_path(graph, source=source, target=target, weight='weight')
+            end_time_path_segment = time.time()
+            segment_time = end_time_path_segment - start_time_path_segment
+            total_path_time += segment_time
+            print(f"Time to find path segment {i} to {i + 1}: {segment_time:.2f} seconds")
             if path_points:
                 # Avoid duplicating points at the segment boundaries
                 path_segment = path_segment[1:]
             path_points.extend(path_segment)
         except netx.NetworkXNoPath:
             print(f"No path found between key point {i} and key point {i + 1}")
+    print(f"Total time to find all paths: {total_path_time:.2f} seconds")
     return np.array(path_points)
 
 def smooth_path(points, key_points_indices, window_size=5):
@@ -158,11 +167,17 @@ def main(smoothing_factor=5, mesh_spacing=50, num_random_points=5):
     # Generate grid points
     points = generate_grid_points(binary_image, mesh_spacing=mesh_spacing, key_points=key_points)
 
-    # Build graph from grid
+    # Time graph building
+    start_time_graph = time.time()
     graph = build_graph_from_grid(points, binary_image, mesh_spacing=mesh_spacing, key_points=key_points)
+    end_time_graph = time.time()
+    print(f"Time to build graph: {end_time_graph - start_time_graph:.2f} seconds")
 
-    # Find the shortest path through all key points
+    # Time pathfinding
+    start_time_pathfinding = time.time()
     path_points = find_path(graph, key_points)
+    end_time_pathfinding = time.time()
+    print(f"Time to find path: {end_time_pathfinding - start_time_pathfinding:.2f} seconds")
 
     if len(path_points) == 0:
         print("No valid path found connecting all key points.")
